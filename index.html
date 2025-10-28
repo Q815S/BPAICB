@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>배꼬미놀이학교 AICB</title>
+    <style>
+        :root { 
+            --primary-color: #FD312E; /* 액티브 레드 */ 
+            --danger-color: #A50034; /* 헤리티지 레드 */ 
+            --model-bg: #F0ECE4; /* 따뜻한 회색 - 채팅 영역 배경 */ 
+            --light-color: #F0ECE4; /* 따뜻한 회색 - 전체 페이지 배경 */
+            --white-color: #FFFFFF; /* 하얀색 - 카드 배경, AI 말풍선 배경 등 */ 
+            --dark-color: #000000; /* 검은색 - 텍스트, 제목 등 */ 
+
+            /* 추가적으로 사용될 수 있는 회색 톤 */
+            --light-gray: #e0e0e0; /* 연한 회색 (border) */
+            --medium-gray: #ccc; /* 중간 회색 */
+            --dark-gray-text: #555; /* 진한 회색 텍스트 (label, 아이콘 색상) */
+            --soft-gray-bg: #fafafa; /* 부드러운 회색 배경 (input) */
+            
+            /* 동적인 높이 조절을 위한 변수 */
+            --app-height: 100vh; /* 폴백값. JS에서 실제 뷰포트 높이로 업데이트됨 */
+            --keyboard-offset-bottom: 0px; /* 키보드 높이만큼의 패딩 */
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        /* 전체 HTML, body 배경색 설정 (따뜻한 회색) */
+        html, body { 
+            width: 100%; 
+            height: 100%; /* vh 문제 해결을 위해 다시 100%로 설정. min-height와 함께 사용 */
+            min-height: var(--app-height); /* JS로 계산된 높이로 최소 높이 설정 */
+            font-family: 'Malgun Gothic', sans-serif; 
+            background-color: var(--light-color); /* 전체 페이지 배경을 따뜻한 회색으로 */
+            overflow-y: scroll; /* 세로 스크롤 허용 (주소창 숨김 위함) */
+            overflow-x: hidden; /* 가로 스크롤 숨김 */
+            padding-bottom: var(--keyboard-offset-bottom, 0px); /* 키보드가 올라올 때 하단 패딩 적용 */
+        }
+        
+        .hidden { display: none !important; }
+
+        /* ===== 채팅 화면 스타일 ===== */
+        #chat-screen { 
+            display: flex; 
+            flex-direction: column; 
+            height: 100%; /* body 높이를 따름 */
+            position: fixed; /* 화면에 고정 */
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+        }
+        header {
+            flex-shrink: 0; background: var(--white-color); padding: 15px 20px;
+            border-bottom: 1px solid var(--light-gray); display: flex; align-items: center;
+        }
+        #exit-class-btn {
+            background: var(--danger-color); color: var(--white-color); border: none; font-size: 1.2em;
+            font-weight: bold; width: 40px; height: 40px; border-radius: 50%;
+            cursor: pointer; transition: opacity 0.3s;
+        }
+        #exit-class-btn:hover { opacity: 0.9; }
+
+        main { 
+            flex-grow: 1; overflow-y: auto; padding: 20px;
+            display: flex; flex-direction: column;
+            background-color: var(--model-bg); /* 채팅 콘텐츠 영역 배경을 따뜻한 회색으로 변경 */
+        }
+
+        .message { 
+            display: flex; 
+            margin-bottom: 20px; 
+            max-width: 85%; 
+            flex-direction: column; 
+            align-items: flex-start; 
+        }
+        .user { 
+            align-self: flex-end; 
+            align-items: flex-end; 
+        }
+        .user .message-bubble { 
+            background-color: var(--primary-color);
+            color: var(--white-color);
+            border-bottom-right-radius: 5px; 
+        }
+
+        .message-bubble { 
+            padding: 12px 18px; 
+            border-radius: 20px; 
+            line-height: 1.6; 
+            color: var(--dark-color); 
+        }
+        .message-bubble pre { white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: 1em; }
+        
+        .model .message-bubble { 
+            background-color: var(--white-color); /* AI 말풍선 배경을 하얀색으로 변경 */
+            border-bottom-left-radius: 5px; 
+        }
+
+        /* 복사 버튼 스타일 */
+        .copy-response-btn {
+            background-color: var(--light-gray);
+            color: var(--dark-gray-text);
+            border: none;
+            border-radius: 10px; 
+            padding: 6px 12px;
+            font-size: 0.85em; 
+            cursor: pointer;
+            margin-top: 5px;
+            align-self: flex-start;
+            transition: opacity 0.2s ease-in-out, background-color 0.2s, color 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .copy-response-btn:hover {
+            background-color: var(--medium-gray);
+        }
+        .copy-response-btn:active {
+            background-color: #999;
+        }
+        .copy-response-btn:disabled {
+            background-color: #eee;
+            color: #aaa;
+            cursor: not-allowed;
+            pointer-events: none;
+            opacity: 0.5;
+        }
+
+        .message.model:hover .copy-response-btn,
+        .message.model.active .copy-response-btn {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+
+        .loading-dots { display: flex; gap: 6px; align-items: center; padding: 12px 0; }
+        .loading-dots .dot {
+            width: 8px; height: 8px; background-color: #aaa;
+            border-radius: 50%; animation: bounce 1.2s infinite ease-in-out;
+        }
+        .loading-dots .dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dots .dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-8px); }
+        }
+
+        footer {
+            flex-shrink: 0; background: var(--white-color); border-top: 1px solid var(--light-gray);
+            padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 10px;
+        }
+        
+        .chat-input-area {
+            display: flex;
+            width: 100%;
+            align-items: center;
+            gap: 10px;
+            padding: 0 10px; /* 좌우 패딩 추가 */
+        }
+
+        #chat-input {
+            flex-grow: 1; 
+            border: 1px solid #ccc; 
+            border-radius: 24px; 
+            padding: 12px 20px; 
+            font-size: 1em; 
+            resize: none;
+            height: 48px;
+            overflow-y: auto; 
+            line-height: 24px; 
+        }
+        #chat-input:focus { 
+            outline: none; 
+            border-color: var(--primary-color); 
+            box-shadow: 0 0 0 3px rgba(253, 49, 46, 0.2);
+        }
+        .chat-btn {
+            flex-shrink: 0; 
+            height: 48px; 
+            border: none; 
+            cursor: pointer; 
+            display: flex; 
+            justify-content: center;
+            align-items: center; 
+            transition: background-color 0.3s;
+        }
+        .chat-btn:disabled { background-color: #ccc; cursor: not-allowed; }
+        
+        #send-btn { 
+            background-color: var(--primary-color); 
+            color: var(--white-color);
+            border-radius: 24px; 
+            padding: 0 20px;
+            font-size: 1em;
+            font-weight: bold;
+        }
+        .chat-btn svg { width: 24px; height: 24px; }
+    </style>
+</head>
+<body>
+
+<div id="chat-screen" class="hidden">
+    <header>
+        <button id="exit-class-btn" title="뒤로 가기">&lt;</button>
+    </header>
+    <main id="chat-container"></main>
+    <footer>
+        <div class="chat-input-area">
+            <textarea id="chat-input" placeholder="배꼬미놀이학교 챗봇과 대화해보세요!"></textarea>
+            <button id="send-btn" class="chat-btn" title="보내기">보내기</button>
+        </div>
+    </footer>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const chatScreen = document.getElementById('chat-screen');
+        const chatContainer = document.getElementById('chat-container');
+        const exitBtn = document.getElementById('exit-class-btn');
+        const sendBtn = document.getElementById('send-btn');
+        const chatInput = document.getElementById('chat-input');
+
+        let chatHistory = [];
+        let currentSystemInstruction = "";
+
+        const HARDCODED_API_KEY = "AIzaSyB4EYKkX6MEvKtYbOkA_Jy3k3D4y1sEJiw"; 
+
+        localStorage.setItem('geminiApiKey', HARDCODED_API_KEY);
+
+        const SYSTEM_INSTRUCTION_TEMPLATE = '당신은 강원특별자치도 양구군의 예비사회적기업 배꼬미놀이학교 협동조합의 고객응대 AI 챗봇입니다.';
+
+        function setAppHeight() {
+            document.body.style.minHeight = `${window.innerHeight}px`;
+        }
+
+        setAppHeight();
+        window.addEventListener('resize', setAppHeight);
+        
+        chatScreen.classList.remove('hidden');
+        startChatSession();
+
+        function startChatSession() {
+            currentSystemInstruction = SYSTEM_INSTRUCTION_TEMPLATE;
+            
+            const initialModelResponse = `안녕하세요! 저는 배꼬미놀이학교 챗봇입니다. 무엇이든 궁금한 점이 있다면 편하게 질문해주세요!`;
+            
+            chatHistory = [
+                { role: 'model', parts: [{ text: initialModelResponse }] }
+            ];
+
+            renderChatHistory(chatHistory);
+        }
+
+        exitBtn.addEventListener('click', () => {
+            history.back();
+        });
+        
+        sendBtn.addEventListener('click', handleSend);
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { 
+                e.preventDefault(); 
+                handleSend(); 
+            }
+        });
+
+        async function handleSend() {
+            const userText = chatInput.value.trim();
+            if (!userText) return;
+
+            setInteractionState(true);
+            
+            const userPartsForDisplay = [{ "type": "text", "content": userText }]; 
+            const userPartsForAPI = [{ "text": userText }]; 
+
+            appendMessage('user', userPartsForDisplay);
+            chatHistory.push({ "role": "user", "parts": userPartsForAPI });
+            
+            chatInput.value = '';
+
+            showLoadingIndicator(true);
+
+            try {
+                const responseText = await callGeminiAPI(currentSystemInstruction, chatHistory);
+                
+                chatHistory.push({ "role": "model", "parts": [{ "text": responseText }] });
+                appendMessage('model', [{ "type": "text", "content": responseText }]); 
+            } catch (error) {
+                console.error('Gemini API Error:', error); 
+                appendMessage('model', [{ "type": "text", "content": `오류가 발생했습니다: ${error.message}` }]);
+            } finally {
+                showLoadingIndicator(false);
+                setInteractionState(false);
+            }
+        }
+
+        function appendMessage(role, parts) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            
+            let hasContent = false;
+
+            parts.forEach(part => {
+                if (part.type === "text" && part.content) {
+                    const pre = document.createElement('pre');
+                    pre.textContent = part.content;
+                    bubble.appendChild(pre);
+                    hasContent = true;
+                } 
+            });
+
+            if (hasContent) {
+                messageDiv.appendChild(bubble);
+                
+                if (role === 'model') {
+                    const copyBtn = document.createElement('button');
+                    copyBtn.className = 'copy-response-btn';
+                    copyBtn.textContent = '복사';
+                    copyBtn.title = '응답 복사';
+                    copyBtn.addEventListener('click', (event) => {
+                        event.stopPropagation(); 
+                        const textToCopy = bubble.querySelector('pre')?.textContent || '';
+                        navigator.clipboard.writeText(textToCopy).then(() => {
+                            copyBtn.textContent = '복사됨!';
+                            setTimeout(() => {
+                                copyBtn.textContent = '복사';
+                            }, 1500);
+                        }).catch(err => {
+                            console.error('Failed to copy text: ', err);
+                            alert('텍스트 복사에 실패했습니다.'); 
+                            setTimeout(() => { 
+                                copyBtn.textContent = '복사';
+                                messageDiv.classList.remove('active');
+                            }, 1500);
+                        });
+                    });
+                    messageDiv.appendChild(copyBtn);
+
+                    messageDiv.addEventListener('mouseover', () => messageDiv.classList.add('active'));
+                    messageDiv.addEventListener('mouseout', () => messageDiv.classList.remove('active'));
+                    messageDiv.addEventListener('touchstart', () => messageDiv.classList.add('active'));
+                    messageDiv.addEventListener('touchend', (event) => {
+                        if (!copyBtn.contains(event.target)) { 
+                           setTimeout(() => messageDiv.classList.remove('active'), 500); 
+                        }
+                    });
+                }
+
+                chatContainer.appendChild(messageDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+        }
+
+        function renderChatHistory(history) {
+            chatContainer.innerHTML = ''; 
+            history.forEach(message => {
+                const partsForDisplay = [];
+                message.parts.forEach(part => {
+                    if (part.text) {
+                        partsForDisplay.push({ type: "text", content: part.text });
+                    }
+                });
+                
+                if (partsForDisplay.length > 0) { 
+                    appendMessage(message.role, partsForDisplay);
+                }
+            });
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function showLoadingIndicator(show) {
+            let indicator = document.getElementById('loading-indicator');
+            if (show) {
+                if (!indicator) {
+                    indicator = document.createElement('div');
+                    indicator.id = 'loading-indicator';
+                    indicator.className = 'message model';
+                    indicator.innerHTML = `
+                        <div class="message-bubble">
+                            <div class="loading-dots">
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                            </div>
+                        </div>
+                    `;
+                    chatContainer.appendChild(indicator);
+                }
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            } else {
+                if (indicator) {
+                    indicator.remove();
+                }
+            }
+        }
+        
+        // [수정] 함수 전체 수정
+        async function callGeminiAPI(systemInstruction, history) {
+            const apiKey = localStorage.getItem('geminiApiKey');
+            if (!apiKey) {
+                throw new Error("API 키가 설정되지 않았습니다.");
+            }
+            
+            // [추가] API URL 정의
+            const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
+            
+            // [추가] requestBody 객체 선언 및 초기화
+            const requestBody = {
+                "contents": history
+            };
+
+            if (systemInstruction) {
+                requestBody.system_instruction = { "parts": [{"text": systemInstruction}] };
+            }
+
+            const response = await fetch(API_URL, { 
+                method: 'POST', 
+                headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify(requestBody) 
+            });
+
+            if (!response.ok) { 
+                const errorData = await response.json(); 
+                throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`); 
+            }
+            const data = await response.json();
+
+            if (data.candidates && data.candidates[0]?.content?.parts) {
+                return data.candidates[0].content.parts[0].text;
+            } else {
+                if (data.candidates && data.candidates[0].finishReason === 'SAFETY') {
+                    throw new Error('응답이 안전상의 이유로 차단되었습니다. 더 구체적인 내용을 입력해주세요.');
+                }
+                throw new Error('API로부터 유효한 응답을 받지 못했습니다.');
+            }
+        }
+
+        function setInteractionState(disabled) {
+            chatInput.disabled = disabled;
+            sendBtn.disabled = disabled;
+            
+            document.querySelectorAll('.copy-response-btn').forEach(btn => {
+                btn.disabled = disabled;
+            });
+
+            if (!disabled) {
+                removeActiveFromMessages();
+            }
+        }
+
+        function removeActiveFromMessages() {
+            document.querySelectorAll('.message.model.active').forEach(msgDiv => {
+                msgDiv.classList.remove('active');
+            });
+        }
+    });
+</script>
+</body>
+</html>
