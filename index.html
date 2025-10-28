@@ -243,7 +243,7 @@
         function startChatSession() {
             currentSystemInstruction = SYSTEM_INSTRUCTION_TEMPLATE;
             
-            const initialModelResponse = `안녕하세요! 저는 배꼬미놀이학교 챗봇입니다. 무엇이든 궁금한 점이 있다면 편하게 질문해주세요!`;
+            const initialModelResponse = `안녕하세요! 저는 배꼬미놀이학교 챗봇입니다. 무엇이든 궁금한 점이 있다면 편하게 질문해주세요!\n\n🚨경고: 본 챗봇은 생성형 AI 기반의 챗봇으로, 정보 제공 시 실수를 할 수 있으니 중요 정보는 다시 한번 확인해주세요.🚨`;
             
             chatHistory = [
                 { role: 'model', parts: [{ text: initialModelResponse }] }
