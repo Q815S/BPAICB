@@ -3,260 +3,467 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>배꼬미놀이학교 AI ChatBot Beta</title>
+    <title>배꼬미놀이학교 AI ChatBot</title>
+    
+    <!-- [추가] 마크다운 변환 라이브러리 (Marked & DOMPurify) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+
     <style>
         :root { 
-            --primary-color: #FD312E; /* 액티브 레드 */ 
-            --danger-color: #A50034; /* 헤리티지 레드 */ 
-            --model-bg: #F0ECE4; /* 따뜻한 회색 - 채팅 영역 배경 */ 
-            --light-color: #F0ECE4; /* 따뜻한 회색 - 전체 페이지 배경 */
-            --white-color: #FFFFFF; /* 하얀색 - 카드 배경, AI 말풍선 배경 등 */ 
-            --dark-color: #000000; /* 검은색 - 텍스트, 제목 등 */ 
-
-            /* 추가적으로 사용될 수 있는 회색 톤 */
-            --light-gray: #e0e0e0; /* 연한 회색 (border) */
-            --medium-gray: #ccc; /* 중간 회색 */
-            --dark-gray-text: #555; /* 진한 회색 텍스트 (label, 아이콘 색상) */
-            --soft-gray-bg: #fafafa; /* 부드러운 회색 배경 (input) */
+            /* LG Official Brand Colors */
+            --lg-black: #111111;       
+            --lg-dark-gray: #444444;   
+            --lg-light-gray: #F4F6F8;  
+            --lg-white: #FFFFFF;       
             
-            /* 동적인 높이 조절을 위한 변수 */
-            --app-height: 100vh; /* 폴백값. JS에서 실제 뷰포트 높이로 업데이트됨 */
-            --keyboard-offset-bottom: 0px; /* 키보드 높이만큼의 패딩 */
+            /* LG Primary Colors */
+            --lg-heritage-red: #A50034; 
+            --lg-active-red: #FD312E;   
+            
+            /* LG Signature Gradient */
+            --lg-gradient: linear-gradient(135deg, #A50034 0%, #FD312E 100%);
+            
+            --border-color: #E4E4E4;
+            --app-height: 100vh;
         }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        /* 전체 HTML, body 배경색 설정 (따뜻한 회색) */
-        html, body { 
-            width: 100%; 
-            height: 100%; /* vh 문제 해결을 위해 다시 100%로 설정. min-height와 함께 사용 */
-            min-height: var(--app-height); /* JS로 계산된 높이로 최소 높이 설정 */
-            font-family: 'Malgun Gothic', sans-serif; 
-            background-color: var(--light-color); /* 전체 페이지 배경을 따뜻한 회색으로 */
-            overflow-y: scroll; /* 세로 스크롤 허용 (주소창 숨김 위함) */
-            overflow-x: hidden; /* 가로 스크롤 숨김 */
-            padding-bottom: var(--keyboard-offset-bottom, 0px); /* 키보드가 올라올 때 하단 패딩 적용 */
+        html, body {
+            width: 100%;
+            height: 100%;
+            height: 100dvh; 
+            min-height: -webkit-fill-available;
+            
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            background-color: var(--lg-white);
+            color: var(--lg-black);
+            overflow: hidden; 
         }
         
         .hidden { display: none !important; }
 
-        /* ===== 채팅 화면 스타일 ===== */
+        /* ===== 레이아웃 컨테이너 ===== */
         #chat-screen { 
             display: flex; 
             flex-direction: column; 
-            height: 100%; /* body 높이를 따름 */
-            position: fixed; /* 화면에 고정 */
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            height: 100%; 
+            max-width: 600px; 
+            margin: 0 auto;
+            background: var(--lg-white);
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.05);
         }
+
+        /* ===== 헤더 ===== */
         header {
-            flex-shrink: 0; background: var(--white-color); padding: 15px 20px;
-            border-bottom: 1px solid var(--light-gray); display: flex; align-items: center;
+            flex-shrink: 0; 
+            height: 56px;
+            padding: 0 20px;
+            display: flex; 
+            align-items: center;
+            justify-content: space-between;
+            background: var(--lg-white);
+            border-bottom: 1px solid var(--border-color);
+            z-index: 10;
         }
-        #exit-class-btn {
-            background: var(--danger-color); color: var(--white-color); border: none; font-size: 1.2em;
-            font-weight: bold; width: 40px; height: 40px; border-radius: 50%;
-            cursor: pointer; transition: opacity 0.3s;
+        
+        header h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--lg-black);
         }
-        #exit-class-btn:hover { opacity: 0.9; }
 
+        .header-actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            color: var(--lg-black);
+            transition: opacity 0.2s;
+        }
+        .header-actions button:hover { opacity: 0.6; }
+
+        /* ===== 메인 채팅 영역 ===== */
         main { 
-            flex-grow: 1; overflow-y: auto; padding: 20px;
-            display: flex; flex-direction: column;
-            background-color: var(--model-bg); /* 채팅 콘텐츠 영역 배경을 따뜻한 회색으로 변경 */
+            flex-grow: 1; 
+            overflow-y: auto; 
+            padding: 20px;
+            display: flex; 
+            flex-direction: column;
+            background-color: var(--lg-white);
+            scroll-behavior: smooth;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        main::-webkit-scrollbar { display: none; }
+
+        /* 웰컴 섹션 */
+        .welcome-section {
+            margin-top: 40px;
+            animation: fadeUp 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* LG 스타일 그라데이션 타이틀 */
+        .welcome-title {
+            font-size: 26px;
+            line-height: 1.35;
+            font-weight: 700;
+            margin-bottom: 30px;
+            letter-spacing: -0.5px;
+            
+            background: var(--lg-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: inline-block;
+        }
+        
+        .quick-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: flex-start;
         }
 
+        .quick-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--lg-white);
+            border: 1px solid #DDDDDD;
+            border-radius: 24px;
+            padding: 12px 18px;
+            font-size: 15px;
+            color: var(--lg-black);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: left;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .quick-btn:hover {
+            background-color: #FDFDFD;
+            border-color: var(--lg-active-red); 
+            color: var(--lg-active-red);
+        }
+        .quick-btn svg { width: 18px; height: 18px; color: #555; transition: color 0.2s; }
+        .quick-btn:hover svg { color: var(--lg-active-red); }
+
+        /* 메시지 스타일 */
         .message { 
             display: flex; 
             margin-bottom: 20px; 
-            max-width: 85%; 
+            max-width: 90%; 
             flex-direction: column; 
-            align-items: flex-start; 
+            animation: messageAppear 0.3s ease;
         }
+        @keyframes messageAppear { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .message-bubble { 
+            padding: 14px 18px; 
+            line-height: 1.6; 
+            font-size: 15px;
+            word-break: break-word;
+            position: relative;
+        }
+        
+        /* [마크다운 스타일 적용] */
+        .message-bubble p { margin: 0 0 8px 0; }
+        .message-bubble p:last-child { margin-bottom: 0; }
+        
+        .message-bubble strong { font-weight: 700; }
+        
+        .message-bubble ul, .message-bubble ol { 
+            margin: 8px 0 8px 20px; 
+            padding: 0; 
+        }
+        .message-bubble li { margin-bottom: 4px; }
+        
+        .message-bubble h1, .message-bubble h2, .message-bubble h3 {
+            font-size: 16px;
+            font-weight: 700;
+            margin: 12px 0 6px 0;
+            line-height: 1.4;
+        }
+        .message-bubble h1:first-child, .message-bubble h2:first-child, .message-bubble h3:first-child {
+            margin-top: 0;
+        }
+        
+        .message-bubble code {
+            background: rgba(0,0,0,0.05);
+            padding: 2px 4px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        .message-bubble pre {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+        .message-bubble pre code {
+            background: transparent;
+            padding: 0;
+        }
+
+        /* 사용자 (오른쪽, 검은색) */
         .user { 
             align-self: flex-end; 
             align-items: flex-end; 
         }
         .user .message-bubble { 
-            background-color: var(--primary-color);
-            color: var(--white-color);
-            border-bottom-right-radius: 5px; 
+            background-color: var(--lg-black);
+            color: var(--lg-white);
+            border-radius: 20px 2px 20px 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
         }
+        .user .message-bubble code { color: #333; } /* 사용자 말풍선 내 코드 색상 */
 
-        .message-bubble { 
-            padding: 12px 18px; 
-            border-radius: 20px; 
-            line-height: 1.6; 
-            color: var(--dark-color); 
-        }
-        .message-bubble pre { white-space: pre-wrap; word-wrap: break-word; font-family: inherit; font-size: 1em; }
-        
+        /* AI 모델 (왼쪽, 회색) */
+        .model { align-self: flex-start; }
         .model .message-bubble { 
-            background-color: var(--white-color); /* AI 말풍선 배경을 하얀색으로 변경 */
-            border-bottom-left-radius: 5px; 
+            background-color: #F5F5F5; 
+            color: var(--lg-black);
+            border-radius: 2px 20px 20px 20px;
         }
 
         /* 복사 버튼 스타일 */
         .copy-response-btn {
-            background-color: var(--light-gray);
-            color: var(--dark-gray-text);
-            border: none;
-            border-radius: 10px; 
-            padding: 6px 12px;
-            font-size: 0.85em; 
+            margin-top: 6px;
+            margin-left: 2px;
+            background: none;
+            border: 1px solid #E0E0E0;
+            color: #888;
+            border-radius: 12px; 
+            padding: 4px 10px;
+            font-size: 11px; 
             cursor: pointer;
-            margin-top: 5px;
-            align-self: flex-start;
-            transition: opacity 0.2s ease-in-out, background-color 0.2s, color 0.2s;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
             opacity: 0;
-            pointer-events: none;
+            transition: all 0.2s;
+            align-self: flex-start;
+            pointer-events: none; 
         }
-        .copy-response-btn:hover {
-            background-color: var(--medium-gray);
+        .message.model:hover .copy-response-btn { 
+            opacity: 1; 
+            pointer-events: auto; 
         }
-        .copy-response-btn:active {
-            background-color: #999;
-        }
-        .copy-response-btn:disabled {
-            background-color: #eee;
-            color: #aaa;
-            cursor: not-allowed;
-            pointer-events: none;
-            opacity: 0.5;
-        }
-
-        .message.model:hover .copy-response-btn,
-        .message.model.active .copy-response-btn {
-            opacity: 1;
-            pointer-events: auto;
+        @media (hover: none) {
+            .copy-response-btn { 
+                opacity: 1; 
+                border-color: transparent; 
+                pointer-events: auto;
+            }
         }
 
-
-        .loading-dots { display: flex; gap: 6px; align-items: center; padding: 12px 0; }
-        .loading-dots .dot {
-            width: 8px; height: 8px; background-color: #aaa;
-            border-radius: 50%; animation: bounce 1.2s infinite ease-in-out;
+        /* LG 스타일 로딩 애니메이션 */
+        .lg-loader {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 4px 0;
+            min-width: 40px;
         }
-        .loading-dots .dot:nth-child(1) { animation-delay: -0.32s; }
-        .loading-dots .dot:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes bounce {
-            0%, 80%, 100% { transform: translateY(0); }
-            40% { transform: translateY(-8px); }
+        .lg-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--lg-heritage-red);
+            border-radius: 50%;
+            opacity: 0.6;
+            animation: lg-wave 1.2s infinite ease-in-out;
+        }
+        .lg-dot:nth-child(1) { animation-delay: -0.32s; }
+        .lg-dot:nth-child(2) { animation-delay: -0.16s; }
+        .lg-dot:nth-child(3) { animation-delay: 0s; }
+
+        @keyframes lg-wave {
+            0%, 80%, 100% { transform: scale(0.8); opacity: 0.6; }
+            40% { transform: scale(1.2); opacity: 1; background-color: var(--lg-active-red); }
         }
 
+        /* ===== 푸터 (입력창) ===== */
         footer {
-            flex-shrink: 0; background: var(--white-color); border-top: 1px solid var(--light-gray);
-            padding: 10px; display: flex; flex-direction: column; align-items: center; gap: 10px;
+            flex-shrink: 0; 
+            background: var(--lg-white); 
+            padding: 10px 16px;
+            border-top: 1px solid #F0F0F0;
+            padding-bottom: max(10px, env(safe-area-inset-bottom)); 
         }
         
-        .chat-input-area {
+        .chat-input-wrapper {
             display: flex;
-            width: 100%;
-            align-items: center;
+            align-items: flex-end;
             gap: 10px;
-            padding: 0 10px; /* 좌우 패딩 추가 */
+            background: var(--lg-white);
+            border: 2px solid #E5E5E5; 
+            border-radius: 26px;
+            padding: 6px 8px 6px 16px; 
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            position: relative;
+            background-clip: padding-box;
+            height: 54px; 
+            align-items: center;
+        }
+
+        .chat-input-wrapper:focus-within {
+            border-color: transparent; 
+            background-image: linear-gradient(white, white), var(--lg-gradient);
+            background-origin: border-box;
+            background-clip: padding-box, border-box;
+            box-shadow: 0 4px 12px rgba(165, 0, 52, 0.15); 
         }
 
         #chat-input {
             flex-grow: 1; 
-            border: 1px solid #ccc; 
-            border-radius: 24px; 
-            padding: 12px 20px; 
-            font-size: 1em; 
+            border: none;
+            background: transparent;
+            padding: 0;
+            font-size: 16px; 
             resize: none;
-            height: 48px;
+            height: 24px; 
+            line-height: 24px;
+            outline: none;
+            color: var(--lg-black);
             overflow-y: auto; 
-            line-height: 24px; 
         }
-        #chat-input:focus { 
-            outline: none; 
-            border-color: var(--primary-color); 
-            box-shadow: 0 0 0 3px rgba(253, 49, 46, 0.2);
-        }
-        .chat-btn {
-            flex-shrink: 0; 
-            height: 48px; 
-            border: none; 
-            cursor: pointer; 
-            display: flex; 
-            justify-content: center;
-            align-items: center; 
-            transition: background-color 0.3s;
-        }
-        .chat-btn:disabled { background-color: #ccc; cursor: not-allowed; }
         
         #send-btn { 
-            background-color: var(--primary-color); 
-            color: var(--white-color);
-            border-radius: 24px; 
-            padding: 0 20px;
-            font-size: 1em;
-            font-weight: bold;
+            width: 40px; height: 40px;
+            background: var(--lg-gradient); 
+            color: var(--lg-white);
+            border: none;
+            border-radius: 50%; 
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: transform 0.2s, opacity 0.2s;
+            flex-shrink: 0;
+            box-shadow: 0 2px 6px rgba(165, 0, 52, 0.3);
         }
-        .chat-btn svg { width: 24px; height: 24px; }
+        #send-btn:active { transform: scale(0.95); }
+        #send-btn:disabled { 
+            background: #E0E0E0; 
+            cursor: default; 
+            color: #AAAAAA;
+            box-shadow: none;
+        }
+        #send-btn svg { width: 20px; height: 20px; fill: currentColor; }
+
     </style>
 </head>
 <body>
 
-<div id="chat-screen" class="hidden">
+<div id="chat-screen">
     <header>
-        <button id="exit-class-btn" title="뒤로 가기">&lt;</button>
+        <h1>AI Chat</h1>
+        <div class="header-actions">
+            <button id="reset-btn" title="대화 초기화">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                    <path d="M3 3v5h5"></path>
+                </svg>
+            </button>
+            <button id="exit-btn" title="닫기">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
     </header>
-    <main id="chat-container"></main>
+
+    <main id="chat-container">
+        <!-- 웰컴 섹션 -->
+        <div class="welcome-section" id="welcome-section">
+            <div class="welcome-title">
+                배꼬미놀이학교 AI와<br>
+                대화를 시작해볼까요?
+            </div>
+            <div class="quick-buttons">
+                <button class="quick-btn" data-msg="배꼬미놀이학교가 뭐야?">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    배꼬미놀이학교 소개해주세요
+                </button>
+                <button class="quick-btn" data-msg="운영 중인 체험 프로그램 알려줘">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                    어떤 체험 프로그램이 있나요?
+                </button>
+                <button class="quick-btn" data-msg="예약은 어떻게 해?">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                    예약 방법을 알고 싶어요
+                </button>
+                <button class="quick-btn" data-msg="양구 펀치볼 탐방에 대해 설명해줘">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
+                    펀치볼 탐방이 궁금해요
+                </button>
+            </div>
+        </div>
+    </main>
+
     <footer>
-        <div class="chat-input-area">
-            <textarea id="chat-input" placeholder="배꼬미놀이학교 AI 챗봇과 대화해보세요!"></textarea>
-            <button id="send-btn" class="chat-btn" title="보내기">보내기</button>
+        <div class="chat-input-wrapper">
+            <textarea id="chat-input" placeholder="무엇이든 물어보세요." rows="1"></textarea>
+            <button id="send-btn" disabled title="전송">
+                <svg viewBox="0 0 24 24">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"></path>
+                </svg>
+            </button>
         </div>
     </footer>
 </div>
 
 <script>
     document.addEventListener('DOMContentLoaded', () => {
-        const chatScreen = document.getElementById('chat-screen');
         const chatContainer = document.getElementById('chat-container');
-        const exitBtn = document.getElementById('exit-class-btn');
-        const sendBtn = document.getElementById('send-btn');
+        const welcomeSection = document.getElementById('welcome-section');
         const chatInput = document.getElementById('chat-input');
+        const sendBtn = document.getElementById('send-btn');
+        const exitBtn = document.getElementById('exit-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const quickBtns = document.querySelectorAll('.quick-btn');
 
         let chatHistory = [];
-        let currentSystemInstruction = "";
+        
+        // 시스템 설정
+        const SYSTEM_INSTRUCTION_TEMPLATE = '당신은 강원특별자치도 양구군의 예비사회적기업 배꼬미놀이학교 협동조합의 고객응대 AI 챗봇입니다. / 배꼬미놀이학교 협동조합은 2018년부터 지금까지 교육, 돌봄 서비스를 제공하고 있습니다. / 배꼬미놀이학교의 특징은, 학부모가 직접 운영합니다: 배꼬미놀이학교의 가장 큰 강점 중 하나는 바로 학부모들이 직접 운영에 참여한다는 점입니다. 이는 부모의 마음으로 아이들에게 꼭 필요한 정서적 안정, 사회성, 인성, 건강 등의 가치를 프로그램에 자연스럽게 녹여내는 기반이 됩니다. 양구 특화 자원을 활용합니다: 양구군이 보유한 특화 자원을 활용하여 다른 곳에서는 경험할 수 없는 차별화된 체험 콘텐츠를 개발하고 제공합니다. 아이들 중심의 체험을 추구합니다: 아이들은 단순 관람보다 직접 참여하고 체험하는 활동을 선호합니다. 배꼬미놀이학교는 이러한 아이들의 니즈를 반영하여, 아이가 주체적으로 원하는 프로그램을 선택하고 참여함으로써 만족도를 높이는 것을 목표로 합니다. / 배꼬미놀이학교가 운영하는 프로그램은 다음과 같습니다. 용늪생태탐방, 생태식물관찰, 숲밥체험, 양구수목원, 백자박물관, 수근아트프로젝트, 짚라인, 태양광보트, 국토정중앙천문대, 양구 펀치볼 탐방, 한반도섬 둘러보기, 역사 탐험대, 양구역사체험관, 역사골든벨, 두무리마을 다슬기잡기, 들깨타작체험, 고추장 담그기 여행플래너, 로컬크리에이터, 역량강화캠프 /  당신은 아직 완성품이 아닌 프로토타입입니다. 예약이나 일정 문의 같이 추가적 확인이 필요한 작업은 하지 마세요. / 답변은 친절하고 정중하게 존댓말을 써주세요. 중요 정보는 강조해서 말해주세요. 리스트나 볼드체 등의 마크다운 형식을 적절히 사용하여 가독성을 높여주세요.';
 
+        // API 키
         const HARDCODED_API_KEY = "AIzaSyB4EYKkX6MEvKtYbOkA_Jy3k3D4y1sEJiw"; 
-
         localStorage.setItem('geminiApiKey', HARDCODED_API_KEY);
 
-        const SYSTEM_INSTRUCTION_TEMPLATE = '당신은 강원특별자치도 양구군의 예비사회적기업 배꼬미놀이학교 협동조합의 고객응대 AI 챗봇입니다. / 배꼬미놀이학교 협동조합은 2018년부터 지금까지 교육, 돌봄 서비스를 제공하고 있습니다. / 배꼬미놀이학교의 특징은, 학부모가 직접 운영합니다: 배꼬미놀이학교의 가장 큰 강점 중 하나는 바로 학부모들이 직접 운영에 참여한다는 점입니다. 이는 부모의 마음으로 아이들에게 꼭 필요한 정서적 안정, 사회성, 인성, 건강 등의 가치를 프로그램에 자연스럽게 녹여내는 기반이 됩니다. 양구 특화 자원을 활용합니다: 양구군이 보유한 특화 자원을 활용하여 다른 곳에서는 경험할 수 없는 차별화된 체험 콘텐츠를 개발하고 제공합니다. 아이들 중심의 체험을 추구합니다: 아이들은 단순 관람보다 직접 참여하고 체험하는 활동을 선호합니다. 배꼬미놀이학교는 이러한 아이들의 니즈를 반영하여, 아이가 주체적으로 원하는 프로그램을 선택하고 참여함으로써 만족도를 높이는 것을 목표로 합니다. / 배꼬미놀이학교가 운영하는 프로그램은 다음과 같습니다. 용늪생태탐방, 생태식물관찰, 숲밥체험, 양구수목원, 백자박물관, 수근아트프로젝트, 짚라인, 태양광보트, 국토정중앙천문대, 양구 펀치볼 탐방, 한반도섬 둘러보기, 역사 탐험대, 양구역사체험관, 역사골든벨, 두무리마을 다슬기잡기, 들깨타작체험, 고추장 담그기 여행플래너, 로컬크리에이터, 역량강화캠프 /  당신은 아직 완성품이 아닌 프로토타입입니다. 예약이나 일정 문의 같이 추가적 확인이 필요한 작업은 하지 마세요. / 고객의 질문에 친절하고 정확하게 답변해 주세요.';
+        // Marked 라이브러리 설정 (줄바꿈 처리)
+        if (window.marked) {
+            marked.use({ breaks: true });
+        }
 
         function setAppHeight() {
-            document.body.style.minHeight = `${window.innerHeight}px`;
+            let vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
         }
-
         setAppHeight();
         window.addEventListener('resize', setAppHeight);
-        
-        chatScreen.classList.remove('hidden');
-        startChatSession();
 
-        function startChatSession() {
-            currentSystemInstruction = SYSTEM_INSTRUCTION_TEMPLATE;
-            
-            const initialModelResponse = `안녕하세요! 저는 배꼬미놀이학교 AI 챗봇입니다. 무엇이든 궁금한 점이 있다면 편하게 질문해주세요!\n\n🚨경고: 본 챗봇은 생성형 AI 기반의 챗봇으로, 정보 제공 시 실수를 할 수 있으니 중요 정보는 다시 한번 확인해주세요.🚨\n\n⚠️안내: 현재 프로토타입으로, API 용량 초과시 사용이 불가할 수 있습니다.⚠️`;
-            
-            chatHistory = [
-                { role: 'model', parts: [{ text: initialModelResponse }] }
-            ];
-
-            renderChatHistory(chatHistory);
+        function initChat() {
+            chatHistory = [];
+            welcomeSection.classList.remove('hidden');
+            const messages = chatContainer.querySelectorAll('.message');
+            messages.forEach(msg => msg.remove());
+            chatInput.value = '';
+            toggleSendButton();
         }
 
-        exitBtn.addEventListener('click', () => {
-            history.back();
+        exitBtn.addEventListener('click', () => history.back());
+        resetBtn.addEventListener('click', () => {
+            if(confirm('대화 내용을 모두 지우고 처음으로 돌아갈까요?')) initChat();
+        });
+
+        chatInput.addEventListener('input', () => {
+            toggleSendButton();
         });
         
-        sendBtn.addEventListener('click', handleSend);
         chatInput.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && !e.shiftKey) { 
                 e.preventDefault(); 
@@ -264,110 +471,119 @@
             }
         });
 
+        sendBtn.addEventListener('click', handleSend);
+
+        quickBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const msg = btn.getAttribute('data-msg');
+                chatInput.value = msg;
+                handleSend();
+            });
+        });
+
+        function toggleSendButton() {
+            sendBtn.disabled = chatInput.value.trim() === '';
+        }
+
         async function handleSend() {
             const userText = chatInput.value.trim();
             if (!userText) return;
 
+            welcomeSection.classList.add('hidden');
             setInteractionState(true);
             
-            const userPartsForDisplay = [{ "type": "text", "content": userText }]; 
-            const userPartsForAPI = [{ "text": userText }]; 
-
-            appendMessage('user', userPartsForDisplay);
-            chatHistory.push({ "role": "user", "parts": userPartsForAPI });
+            appendMessage('user', userText);
+            chatHistory.push({ "role": "user", "parts": [{ "text": userText }] });
             
             chatInput.value = '';
+            toggleSendButton();
 
             showLoadingIndicator(true);
 
             try {
-                const responseText = await callGeminiAPI(currentSystemInstruction, chatHistory);
-                
+                const responseText = await callGeminiAPI(SYSTEM_INSTRUCTION_TEMPLATE, chatHistory);
                 chatHistory.push({ "role": "model", "parts": [{ "text": responseText }] });
-                appendMessage('model', [{ "type": "text", "content": responseText }]); 
+                appendMessage('model', responseText);
             } catch (error) {
-                console.error('Gemini API Error:', error); 
-                appendMessage('model', [{ "type": "text", "content": `오류가 발생했습니다: ${error.message}` }]);
+                console.error('API Error:', error); 
+                appendMessage('model', `죄송합니다. 오류가 발생했습니다.\n(${error.message})`);
             } finally {
                 showLoadingIndicator(false);
                 setInteractionState(false);
+                chatInput.focus();
             }
         }
 
-        function appendMessage(role, parts) {
+        function appendMessage(role, text) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${role}`;
 
             const bubble = document.createElement('div');
             bubble.className = 'message-bubble';
             
-            let hasContent = false;
-
-            parts.forEach(part => {
-                if (part.type === "text" && part.content) {
-                    const pre = document.createElement('pre');
-                    pre.textContent = part.content;
-                    bubble.appendChild(pre);
-                    hasContent = true;
-                } 
-            });
-
-            if (hasContent) {
-                messageDiv.appendChild(bubble);
-                
-                if (role === 'model') {
-                    const copyBtn = document.createElement('button');
-                    copyBtn.className = 'copy-response-btn';
-                    copyBtn.textContent = '복사';
-                    copyBtn.title = '응답 복사';
-                    copyBtn.addEventListener('click', (event) => {
-                        event.stopPropagation(); 
-                        const textToCopy = bubble.querySelector('pre')?.textContent || '';
-                        navigator.clipboard.writeText(textToCopy).then(() => {
-                            copyBtn.textContent = '복사됨!';
-                            setTimeout(() => {
-                                copyBtn.textContent = '복사';
-                            }, 1500);
-                        }).catch(err => {
-                            console.error('Failed to copy text: ', err);
-                            alert('텍스트 복사에 실패했습니다.'); 
-                            setTimeout(() => { 
-                                copyBtn.textContent = '복사';
-                                messageDiv.classList.remove('active');
-                            }, 1500);
-                        });
-                    });
-                    messageDiv.appendChild(copyBtn);
-
-                    messageDiv.addEventListener('mouseover', () => messageDiv.classList.add('active'));
-                    messageDiv.addEventListener('mouseout', () => messageDiv.classList.remove('active'));
-                    messageDiv.addEventListener('touchstart', () => messageDiv.classList.add('active'));
-                    messageDiv.addEventListener('touchend', (event) => {
-                        if (!copyBtn.contains(event.target)) { 
-                           setTimeout(() => messageDiv.classList.remove('active'), 500); 
-                        }
-                    });
-                }
-
-                chatContainer.appendChild(messageDiv);
-                chatContainer.scrollTop = chatContainer.scrollHeight;
+            // [마크다운 처리 로직]
+            if (role === 'model') {
+                // AI 응답은 마크다운 파싱 후 DOMPurify로 살균
+                const rawHtml = marked.parse(text);
+                const safeHtml = DOMPurify.sanitize(rawHtml);
+                bubble.innerHTML = safeHtml;
+            } else {
+                // 사용자는 텍스트 그대로 (HTML 태그 입력 방지)
+                const pre = document.createElement('p');
+                pre.style.margin = 0;
+                pre.textContent = text;
+                bubble.appendChild(pre);
             }
-        }
 
-        function renderChatHistory(history) {
-            chatContainer.innerHTML = ''; 
-            history.forEach(message => {
-                const partsForDisplay = [];
-                message.parts.forEach(part => {
-                    if (part.text) {
-                        partsForDisplay.push({ type: "text", content: part.text });
-                    }
-                });
+            messageDiv.appendChild(bubble);
+
+            if (role === 'model') {
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-response-btn';
+                copyBtn.textContent = '복사';
                 
-                if (partsForDisplay.length > 0) { 
-                    appendMessage(message.role, partsForDisplay);
+                copyBtn.onclick = () => {
+                    // 순수 텍스트만 추출해서 복사
+                    const plainText = bubble.innerText;
+                    
+                    if (navigator.clipboard && window.isSecureContext) {
+                        navigator.clipboard.writeText(plainText).then(() => {
+                            copyBtn.textContent = '완료';
+                            setTimeout(() => copyBtn.textContent = '복사', 1500);
+                        }).catch(err => {
+                            fallbackCopyTextToClipboard(plainText);
+                        });
+                    } else {
+                        fallbackCopyTextToClipboard(plainText);
+                    }
+                };
+                
+                function fallbackCopyTextToClipboard(text) {
+                    var textArea = document.createElement("textarea");
+                    textArea.value = text;
+                    textArea.style.position = "fixed";
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    try {
+                        var successful = document.execCommand('copy');
+                        if(successful) {
+                            copyBtn.textContent = '완료';
+                            setTimeout(() => copyBtn.textContent = '복사', 1500);
+                        } else {
+                            alert('복사에 실패했습니다.');
+                        }
+                    } catch (err) {
+                        console.error('Fallback error', err);
+                        alert('복사 기능이 지원되지 않는 환경입니다.');
+                    }
+                    document.body.removeChild(textArea);
                 }
-            });
+                
+                messageDiv.appendChild(copyBtn);
+            }
+
+            chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
         }
 
@@ -379,11 +595,11 @@
                     indicator.id = 'loading-indicator';
                     indicator.className = 'message model';
                     indicator.innerHTML = `
-                        <div class="message-bubble">
-                            <div class="loading-dots">
-                                <div class="dot"></div>
-                                <div class="dot"></div>
-                                <div class="dot"></div>
+                        <div class="message-bubble" style="background: #F5F5F5; border-radius: 2px 20px 20px 20px; padding: 12px 16px;">
+                            <div class="lg-loader">
+                                <div class="lg-dot"></div>
+                                <div class="lg-dot"></div>
+                                <div class="lg-dot"></div>
                             </div>
                         </div>
                     `;
@@ -391,30 +607,18 @@
                 }
                 chatContainer.scrollTop = chatContainer.scrollHeight;
             } else {
-                if (indicator) {
-                    indicator.remove();
-                }
+                if (indicator) indicator.remove();
             }
         }
-        
-        // [수정] 함수 전체 수정
+
         async function callGeminiAPI(systemInstruction, history) {
             const apiKey = localStorage.getItem('geminiApiKey');
-            if (!apiKey) {
-                throw new Error("API 키가 설정되지 않았습니다.");
-            }
-            
-            // [추가] API URL 정의
             const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
             
-            // [추가] requestBody 객체 선언 및 초기화
             const requestBody = {
-                "contents": history
+                "contents": history,
+                "system_instruction": { "parts": [{"text": systemInstruction}] }
             };
-
-            if (systemInstruction) {
-                requestBody.system_instruction = { "parts": [{"text": systemInstruction}] };
-            }
 
             const response = await fetch(API_URL, { 
                 method: 'POST', 
@@ -422,39 +626,17 @@
                 body: JSON.stringify(requestBody) 
             });
 
-            if (!response.ok) { 
-                const errorData = await response.json(); 
-                throw new Error(errorData.error?.message || `HTTP error! status: ${response.status}`); 
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error?.message || 'Network Error');
             }
             const data = await response.json();
-
-            if (data.candidates && data.candidates[0]?.content?.parts) {
-                return data.candidates[0].content.parts[0].text;
-            } else {
-                if (data.candidates && data.candidates[0].finishReason === 'SAFETY') {
-                    throw new Error('응답이 안전상의 이유로 차단되었습니다. 더 구체적인 내용을 입력해주세요.');
-                }
-                throw new Error('API로부터 유효한 응답을 받지 못했습니다.');
-            }
+            return data.candidates[0].content.parts[0].text;
         }
 
         function setInteractionState(disabled) {
             chatInput.disabled = disabled;
             sendBtn.disabled = disabled;
-            
-            document.querySelectorAll('.copy-response-btn').forEach(btn => {
-                btn.disabled = disabled;
-            });
-
-            if (!disabled) {
-                removeActiveFromMessages();
-            }
-        }
-
-        function removeActiveFromMessages() {
-            document.querySelectorAll('.message.model.active').forEach(msgDiv => {
-                msgDiv.classList.remove('active');
-            });
         }
     });
 </script>
